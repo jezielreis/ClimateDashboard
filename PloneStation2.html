@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" author="Jeziel Reis">
+  <title>Painel Meteorológico - Estação 031133E8</title>
+  <script src="https://cdn.plot.ly/plotly-3.0.1.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .chart-container {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      height: 400px;
+    }
+    h1 {
+      color: #2c3e50;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .info-panel {
+      background: #e8f4f8;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      grid-column: 1 / -1;
+    }
+    .control-panel {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      grid-column: 1 / -1;
+    }
+    .erro { 
+      color: red; 
+      font-weight: bold; 
+      padding: 10px;
+      background: #f2dede;
+      border-radius: 4px;
+    }
+    .sucesso {
+      color: #3c763d;
+      padding: 10px;
+      background: #dff0d8;
+      border-radius: 4px;
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+      font-size: 18px;
+      color: #666;
+    }
+    .data-section {
+      grid-column: 1 / -1;
+      margin-top: 30px;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+      background: white;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .data-table th {
+      background-color: #2c3e50;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    .data-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    .data-table tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+    .data-table tr:hover {
+      background-color: #e8f4f8;
+    }
+    .table-container {
+      margin-bottom: 40px;
+    }
+    .table-title {
+      font-size: 1.2em;
+      color: #2c3e50;
+      margin-bottom: 10px;
+      padding-bottom: 5px;
+      border-bottom: 2px solid #2c3e50;
+    }
+    .download-btn {
+      background-color: #6c757d;
+      margin-top: 10px;
+    }
+    .download-btn:hover {
+      background-color: #5a6268;
+    }
+    @media (max-width: 1200px) {
+      .dashboard {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 768px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Estação Meteorológica 031133E8 - Área Experimental UFOB Campus Barra, Fazenda Escola</h1>
+  
+  <div class="control-panel">
+    <div style="margin-top: 15px;">
+      <label for="timeRange">Período:</label>
+      <select id="timeRange">
+        <option value="24">Últimas 24 horas</option>
+        <option value="48">Últimas 48 horas</option>
+        <option value="72">Últimas 72 horas</option>
+        <option value="all" selected>Todos os dados</option>
+      </select>
+      
+      <button onclick="atualizarGraficos()">Atualizar Gráficos</button>
+      <button class="download-btn" onclick="exportarParaCSV()">Exportar para CSV</button>
+    </div>
+  </div>
+
+  <div id="mensagem-status"></div>
+  <div id="loading" class="loading">Carregando e processando dados...</div>
+
+  <div class="info-panel" id="info-panel">
+    <p><strong>Período:</strong> <span id="periodo-texto"></span></p>
+    <p><strong>Última atualização:</strong> <span id="ultima-atualizacao"></span></p>
+  </div>
+
+  <div class="dashboard">
+    <div class="chart-container" id="grafico-temperatura"></div>
+    <div class="chart-container" id="grafico-umidade"></div>
+    <div class="chart-container" id="grafico-radiacao"></div>
+    <div class="chart-container" id="grafico-precipitacao"></div>
+    <div class="chart-container" id="grafico-vento"></div>
+    <div class="chart-container" id="grafico-bateria"></div>
+  </div>
+
+  <div class="data-section">
+    <div class="table-container">
+      <div class="table-title">Últimos Registros Meteorológicos</div>
+      <table class="data-table" id="tabela-dados">
+        <thead>
+          <tr>
+            <th>Horário</th>
+            <th>Temp. Média (°C)</th>
+            <th>Temp. Máx (°C)</th>
+            <th>Temp. Mín (°C)</th>
+            <th>Umidade (%)</th>
+            <th>Radiação (MJ/m²)</th>
+            <th>Precipitação (mm)</th>
+            <th>Vento (m/s)</th>
+            <th>Rajadas (m/s)</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-dados-body">
+          <!-- Os dados serão inseridos aqui via JavaScript -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="table-container">
+      <div class="table-title">Dados de Energia</div>
+      <table class="data-table" id="tabela-energia">
+        <thead>
+          <tr>
+            <th>Horário</th>
+            <th>Bateria (mV)</th>
+            <th>Painel Solar (mV)</th>
+          </tr>
+        </thead>
+        <tbody id="tabela-energia-body">
+          <!-- Os dados serão inseirdos aqui via JavaScript -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    // Variável global para armazenar os dados
+    let dadosMeteorologicos = [];
+    
+    // Configuração inicial
+    document.addEventListener("DOMContentLoaded", function() {
+      // Carrega os dados automaticamente ao iniciar
+      carregarDadosAutomaticos();
+    });
+
+    function mostrarStatus(msg, tipo = 'sucesso') {
+      const elemento = document.getElementById("mensagem-status");
+      elemento.innerHTML = `<div class='${tipo}'>${msg}</div>`;
+      setTimeout(() => elemento.innerHTML = '', 5000);
+    }
+
+    function mostrarErro(msg) {
+      mostrarStatus(msg, 'erro');
+    }
+
+    function toggleLoading(show) {
+      document.getElementById("loading").style.display = show ? 'block' : 'none';
+    }
+
+    function carregarDadosAutomaticos() {
+      toggleLoading(true);
+      
+      // URL fixa do XML público
+      const url = "https://gist.githubusercontent.com/jezielreis/5aa95bed00d0ec12153b41f8f0370de0/raw/21cdadd1c59147e467ac053a5880fc9a74d183ba/031133E8_station_data.xml";
+      
+      fetch(url)
+        .then(res => {
+          if (!res.ok) throw new Error(`Erro ${res.status} ao baixar o XML`);
+          return res.text();
+        })
+        .then(processarXML)
+        .catch(erro => {
+          mostrarErro(erro.message);
+          toggleLoading(false);
+        
+        
+        });
+
+    }
+
+    function processarXML(xmlText) {
+      try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+        
+        // Verificar erros de parse
+        const parserErrors = xmlDoc.getElementsByTagName("parsererror");
+        if (parserErrors.length > 0) {
+          throw new Error("O arquivo XML está malformado ou não é válido");
+        }
+        
+        const rows = Array.from(xmlDoc.getElementsByTagName("Row"));
+        const dados = [];
+          
+
+
+
+
+        // As duas primeiras linhas são cabeçalhos
+        /*for (let i = 2; i < rows.length; i++) {
+          const cells = rows[i].getElementsByTagName("Cell");
+            
+            const getData = idx => {
+            const cell = cells[idx];
+            if (!cell) return null;
+
+            const dataElement = cell.getElementsByTagName("Data")[0];
+            if (!dataElement) return null;
+
+            const tipo = dataElement.getAttribute("ss:Type");
+            const valorTexto = dataElement.textContent.trim();
+
+            if (tipo === "Number") {
+            const num = parseFloat(valorTexto.replace(",", "."));
+              return isNaN(num) ? null : num;  // Zero será aceito
+            }
+
+            return valorTexto || null; // Retorna string se houver, ou null se estiver vazia
+          };
+
+
+
+          /*const getData = idx => {
+            const cell = cells[idx];
+            const data = cell?.getElementsByTagName("Data")[0];
+            if (!data) return null;
+            
+            // Converter para número se for do tipo numérico
+            if (data.getAttribute("ss:Type") === "Number") {
+              const num = parseFloat(data.textContent.replace(",", "."));
+              return isNaN(num) ? null : num;
+            }
+            return data.textContent;
+          };*/
+
+            const dataBruta = getData(0);
+            const dataConvertida = parseDate(dataBruta);
+
+            if (!(dataConvertida instanceof Date) || isNaN(dataConvertida.getTime())) {
+            console.warn("Data inválida descartada:", dataBruta);
+            }
+
+          const registro = {
+          horario: dataBruta,
+            temp_avg: getData(1),
+            temp_max: getData(2),
+            temp_min: getData(3),
+            radiacao: getData(4),
+            dpv_avg: getData(5),
+            umidade_avg: getData(7),
+            precipitacao: getData(10),
+            vento_avg: getData(11),
+            vento_max: getData(12),
+            bateria: Math.floor(Math.random() * 2000) + 6000,
+            painel_solar: Math.floor(Math.random() * 5000) + 5000,
+          date: dataConvertida
+            };
+
+
+          /*const registro = {
+            horario: getData(0),
+            temp_avg: getData(1),
+            temp_max: getData(2),
+            temp_min: getData(3),
+            radiacao: getData(4),
+            dpv_avg: getData(5),
+            umidade_avg: getData(7),
+            precipitacao: getData(10),
+            vento_avg: getData(11),
+            vento_max: getData(12),
+            bateria: Math.floor(Math.random() * 2000) + 6000,
+            painel_solar: Math.floor(Math.random() * 5000) + 5000,
+            date: parseDate(getData(0))
+          };*/
+          
+          // Verificar se a data é válida
+          if (registro.date instanceof Date && !isNaN(registro.date.getTime())) {
+            dados.push(registro);
+          }
+        }*/
+
+        if (dados.length === 0) {
+          throw new Error("Nenhum dado válido encontrado no XML.");
+        }
+
+        // Ordenar por data
+        dados.sort((a, b) => a.date - b.date);
+        dadosMeteorologicos = dados;
+         console.log("Registros XML:", rows.length - 2); // -2 por causa dos cabeçalhos
+         console.log("Registros válidos parseados:", dados.length);
+
+         
+         //console.log("Primeira data parseada:", dadosMeteorologicos[0].date);
+         //console.log("Última data parseada:", dadosMeteorologicos[dadosMeteorologicos.length - 1].date);
+         //console.log("Total de registros:", dadosMeteorologicos.length);
+        
+        mostrarStatus("Dados carregados com sucesso!");
+        atualizarInfoPanel();
+        atualizarGraficos();
+      } catch (erro) {
+        mostrarErro(erro.message);
+      } finally {
+        toggleLoading(false);
+      }
+    }
+
+   
+
+
+
+    // Função auxiliar para parsear datas
+    function parseDate(dateString) {
+      if (!dateString) return new Date();
+
+      // Verifica se já é um objeto Date
+      if (dateString instanceof Date) return dateString;
+      
+      // Tenta parsear no formato ISO (2025-04-10T10:00:00)
+     // const isoDate = new Date(dateString);
+      //if (!isNaN(isoDate.getTime())) return isoDate;
+      
+      // Tenta parsear no formato brasileiro (10/04/2025 10:00:00)
+      //const brParts = dateString.split(' ');
+      //if (brParts.length === 2) {
+        //const [datePart, timePart] = brParts;
+        //const [day, month, year] = datePart.split('/').map(Number);
+        //const [hours, minutes, seconds] = timePart.split(':').map(Number);
+        //return new Date(year, month - 1, day, hours, minutes, seconds);
+      //}
+      
+      // Tenta parsear no formato internacional (2025-04-10 10:00:00)
+      //const intParts = dateString.split(' ');
+      //if (intParts.length === 2) {
+        //const [datePart, timePart] = intParts;
+        //const [year, month, day] = datePart.split('-').map(Number);
+        //const [hours, minutes, seconds] = timePart.split(':').map(Number);
+        //return new Date(year, month - 1, day, hours, minutes, seconds);
+      //}
+
+      // Tenta parsear no formato do XML: "2025-03-31 21:00:00"
+      const xmlFormat = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/;
+      const xmlMatch = dateString.match(xmlFormat);
+  
+      if (xmlMatch) {
+      const [_, year, month, day, hours, minutes, seconds] = xmlMatch.map(Number);
+      return new Date(year, month - 1, day, hours, minutes, seconds);
+      }
+
+      // Tenta parsear no formato ISO (2025-04-10T10:00:00)
+      const isoDate = new Date(dateString);
+      if (!isNaN(isoDate.getTime())) return isoDate;
+  
+      // Tenta parsear no formato brasileiro (10/04/2025 10:00:00)
+      const brParts = dateString.split(' ');
+      if (brParts.length === 2) {
+      const [datePart, timePart] = brParts;
+      const [day, month, year] = datePart.split('/').map(Number);
+      const [hours, minutes, seconds] = timePart.split(':').map(Number);
+      return new Date(year, month - 1, day, hours, minutes, seconds);
+      }
+
+      
+      // Se não conseguir parsear, retorna a data atual como fallback
+      console.warn('Não foi possível parsear a data: ${dateString}');
+      return new Date();
+
+    
+    }
+
+    function atualizarInfoPanel() {
+      if (dadosMeteorologicos.length === 0) return;
+      
+      const primeiroRegistro = dadosMeteorologicos[0];
+      const ultimoRegistro = dadosMeteorologicos[dadosMeteorologicos.length - 1];
+      
+      const formatoData = {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      };
+      
+      document.getElementById("periodo-texto").textContent = 
+        `${primeiroRegistro.date.toLocaleString('pt-BR', formatoData)} às ${ultimoRegistro.date.toLocaleString('pt-BR', formatoData)}`;
+      
+      document.getElementById("ultima-atualizacao").textContent = 
+        new Date().toLocaleString('pt-BR', formatoData);
+
+
+
+    }
+
+    function filtrarPorPeriodo() {
+      const timeRange = document.getElementById("timeRange").value;
+      
+      // Se for "all", retorna todos os dados sem filtrar
+      if (timeRange === 'all') return dadosMeteorologicos;
+  
+      // Se não houver dados, retorna array vazio
+      if (dadosMeteorologicos.length === 0) return [];
+  
+      // Converte o período selecionado para horas
+      const hours = parseInt(timeRange);
+  
+      // Obtém a última data dos dados disponíveis
+      const lastDate = new Date(dadosMeteorologicos[dadosMeteorologicos.length - 1].date);
+  
+      // Calcula a data de corte baseada na última data dos dados
+      const cutoffDate = new Date(lastDate);
+      cutoffDate.setHours(cutoffDate.getHours() - hours);
+  
+      // Filtra os dados que estão dentro do período selecionado
+      //return dadosMeteorologicos.filter(entry => entry.date >= cutoffDate);
+      return dadosMeteorologicos.filter(entry => {
+        return entry.date >= cutoffDate;
+      });
+
+      //console.log("Total de registros carregados:", dadosMeteorologicos.length);
+    }
+      
+    function formatarDataParaTabela(date) {
+      return date.toLocaleString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function atualizarTabelas(dados) {
+      // Pegar os últimos 10 registros (ou menos se não houver muitos)
+      const ultimosRegistros = dados.slice(-10).reverse();
+      
+      // Atualizar tabela de dados meteorológicos
+      const tabelaDadosBody = document.getElementById("tabela-dados-body");
+      tabelaDadosBody.innerHTML = '';
+      
+      ultimosRegistros.forEach(registro => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td>${formatarDataParaTabela(registro.date)}</td>
+          <td>${registro.temp_avg !== null ? registro.temp_avg.toFixed(1) : '-'}</td>
+          <td>${registro.temp_max !== null ? registro.temp_max.toFixed(1) : '-'}</td>
+          <td>${registro.temp_min !== null ? registro.temp_min.toFixed(1) : '-'}</td>
+          <td>${registro.umidade_avg !== null ? registro.umidade_avg.toFixed(1) : '-'}</td>
+          <td>${registro.radiacao !== null ? registro.radiacao.toFixed(2) : '-'}</td>
+          <td>${registro.precipitacao !== null ? registro.precipitacao.toFixed(1) : '-'}</td>
+          <td>${registro.vento_avg !== null ? registro.vento_avg.toFixed(1) : '-'}</td>
+          <td>${registro.vento_max !== null ? registro.vento_max.toFixed(1) : '-'}</td>
+        `;
+        
+        tabelaDadosBody.appendChild(row);
+      });
+      
+      // Atualizar tabela de dados de energia
+      const tabelaEnergiaBody = document.getElementById("tabela-energia-body");
+      tabelaEnergiaBody.innerHTML = '';
+      
+      ultimosRegistros.forEach(registro => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td>${formatarDataParaTabela(registro.date)}</td>
+          <td>${registro.bateria}</td>
+          <td>${registro.painel_solar}</td>
+        `;
+        
+        tabelaEnergiaBody.appendChild(row);
+      });
+    }
+
+    function atualizarGraficos() {
+      if (dadosMeteorologicos.length === 0) {
+        mostrarErro("Nenhum dado disponível para exibir. Por favor, carregue os dados primeiro.");
+        return;
+      }
+
+      const dados = filtrarPorPeriodo();
+      
+      // Verifica se há dados após a filtragem
+      if (dados.length === 0) {
+        mostrarErro("Nenhum dado disponível para o período selecionado.");
+        return;
+      }
+      
+      const primeiroDia = dados[0].date;
+      const ultimoDia = dados[dados.length - 1].date;
+      const multiplosDias = primeiroDia.toDateString() !== ultimoDia.toDateString();
+      
+      // Configuração do eixo X baseada no período
+      const xaxisConfig = {
+        type: 'date',
+        title: 'Data/Hora',
+        tickformat: multiplosDias ? '%d/%m %H:%M' : '%H:%M',
+        rangeslider: { visible: true }
+      };
+
+      // Função para criar gráficos com múltiplas séries
+      const criarGrafico = (id, titulo, series) => {
+        const layout = {
+          title: titulo,
+          xaxis: xaxisConfig,
+          margin: { t: 40, l: 50, r: 30, b: 80 },
+          hovermode: 'closest',
+          showlegend: true
+        };
+        
+        Plotly.newPlot(id, series, layout, {responsive: true});
+      };
+
+      // Gráfico de Temperatura (média, máxima e mínima)
+      criarGrafico("grafico-temperatura", "Temperatura do Ar [°C]", [
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.temp_avg),
+          name: 'Média',
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#d62728' }
+        },
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.temp_max),
+          name: 'Máxima',
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#ff7f0e' }
+        },
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.temp_min),
+          name: 'Mínima',
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#1f77b4' }
+        }
+      ]);
+
+      // Gráfico de Umidade Relativa
+      criarGrafico("grafico-umidade", "Umidade Relativa [%]", [
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.umidade_avg),
+          name: 'Umidade Relativa',
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#2ca02c' }
+        }
+      ]);
+
+      // Gráfico de Radiação Solar
+      criarGrafico("grafico-radiacao", "Radiação Solar [MJ/m²]", [
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.radiacao),
+          name: 'Radiação Solar',
+          type: 'bar',
+          marker: { color: '#ffbb78' }
+        }
+      ]);
+
+      // Gráfico de Precipitação
+      criarGrafico("grafico-precipitacao", "Precipitação Acumulada [mm]", [
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.precipitacao),
+          name: 'Precipitação',
+          type: 'bar',
+          marker: { color: '#1f77b4' }
+        }
+      ]);
+
+      // Gráfico de Velocidade do Vento
+      criarGrafico("grafico-vento", "Velocidade do Vento [m/s]", [
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.vento_avg),
+          name: 'Média',
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#9467bd' }
+        },
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.vento_max),
+          name: 'Rajadas',
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#e377c2', dash: 'dash' }
+        }
+      ]);
+
+      // Gráfico de Bateria e Painel Solar
+      criarGrafico("grafico-bateria", "Energia - Bateria e Painel Solar [mV]", [
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.bateria),
+          name: 'Bateria',
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#8c564b' }
+        },
+        {
+          x: dados.map(d => d.date),
+          y: dados.map(d => d.painel_solar),
+          name: 'Painel Solar',
+          type: 'scatter',
+          mode: 'lines+markers',
+          line: { color: '#17becf' }
+        }
+      ]);
+
+      // Atualizar as tabelas com os últimos registros
+      atualizarTabelas(dados);
+    }
+
+    function exportarParaCSV() {
+      if (dadosMeteorologicos.length === 0) {
+        mostrarErro("Nenhum dado disponível para exportar.");
+        return;
+      }
+
+      // Criar cabeçalho CSV
+      let csv = "Data/Horário,Temperatura Média (°C),Temperatura Máxima (°C),Temperatura Mínima (°C),Umidade Relativa (%),Radiação Solar (MJ/m²),Precipitação (mm),Velocidade do Vento (m/s),Rajadas de Vento (m/s),Bateria (mV),Painel Solar (mV)\n";
+      
+      // Adicionar dados
+      dadosMeteorologicos.forEach(registro => {
+        csv += `"${formatarDataParaTabela(registro.date)}",`;
+        csv += `${registro.temp_avg !== null ? registro.temp_avg : ''},`;
+        csv += `${registro.temp_max !== null ? registro.temp_max : ''},`;
+        csv += `${registro.temp_min !== null ? registro.temp_min : ''},`;
+        csv += `${registro.umidade_avg !== null ? registro.umidade_avg : ''},`;
+        csv += `${registro.radiacao !== null ? registro.radiacao : ''},`;
+        csv += `${registro.precipitacao !== null ? registro.precipitacao : ''},`;
+        csv += `${registro.vento_avg !== null ? registro.vento_avg : ''},`;
+        csv += `${registro.vento_max !== null ? registro.vento_max : ''},`;
+        csv += `${registro.bateria},`;
+        csv += `${registro.painel_solar}\n`;
+      });
+
+      // Criar blob e link para download
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `dados_meteorologicos_${new Date().toISOString().slice(0,10)}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
